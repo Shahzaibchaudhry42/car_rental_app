@@ -132,7 +132,7 @@ flutterfire configure
 2. **Firestore Database**:
    - Create a Cloud Firestore database
    - Start in production mode
-   - Copy the security rules from README
+  - Deploy the included security rules from `firestore.rules`
 
 3. **Storage**:
    - Go to Storage
@@ -155,10 +155,26 @@ await Firebase.initializeApp(
 
 ### 3. Razorpay Configuration
 
-Update [payment_service.dart](lib/services/payment_service.dart#L33):
+Razorpay key is read from a Dart define (no hard-coded keys).
 
-```dart
-'key': 'YOUR_RAZORPAY_KEY_HERE', // Replace with your actual Razorpay key
+Run with:
+
+```bash
+flutter run --dart-define=RAZORPAY_KEY=YOUR_RAZORPAY_KEY_HERE
+```
+
+Or build with:
+
+```bash
+flutter build apk --release --dart-define=RAZORPAY_KEY=YOUR_RAZORPAY_KEY_HERE
+```
+
+### 3a. Deploy Firestore Rules (Fixes permission-denied)
+
+This project includes [firestore.rules](firestore.rules). Deploy it so Profile/Bookings work:
+
+```bash
+firebase deploy --only firestore:rules
 ```
 
 ### 4. Android Configuration

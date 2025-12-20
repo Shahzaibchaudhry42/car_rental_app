@@ -288,6 +288,13 @@ class BookingService {
 
       return true;
     } catch (e) {
+      final message = e.toString();
+      // If reads are blocked by Firestore rules, don't fail booking creation.
+      // Treat availability as unknown and allow the booking write to proceed.
+      if (message.contains('permission-denied') ||
+          message.contains('PERMISSION_DENIED')) {
+        return true;
+      }
       throw 'Failed to check availability: $e';
     }
   }

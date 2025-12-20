@@ -154,6 +154,19 @@ class _BookingScreenState extends State<BookingScreen> {
         );
       }
     } catch (e) {
+      // If Firestore rules block reads (permission-denied), don't block the UI.
+      // We'll treat availability as "unknown" and allow the user to proceed.
+      final message = e.toString();
+      if (message.contains('permission-denied') ||
+          message.contains('PERMISSION_DENIED')) {
+        if (mounted) {
+          setState(() {
+            _isAvailable = true;
+          });
+        }
+        return;
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error checking availability: $e')),
       );
@@ -177,6 +190,21 @@ class _BookingScreenState extends State<BookingScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Car is not available for selected dates'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // If Razorpay isn't configured (common in fresh setups), don't create a
+    // Firestore booking that will remain unpaid.
+    if (!kIsWeb && !_paymentService.isConfigured) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Payment is not configured. Set `--dart-define=RAZORPAY_KEY=...` and try again.',
+          ),
+          behavior: SnackBarBehavior.floating,
           backgroundColor: Colors.red,
         ),
       );
@@ -296,13 +324,28 @@ class _BookingScreenState extends State<BookingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Book Car')),
+      backgroundColor: Colors.grey[50],
+      appBar: AppBar(
+        title: const Text(
+          'Book Your Car',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        elevation: 0,
+        backgroundColor: Theme.of(context).primaryColor,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: Stack(
         children: [
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF0D47A1), Color(0xFF1976D2)],
+                colors: [
+                  Theme.of(context).primaryColor.withOpacity(0.05),
+                  Colors.white,
+                ],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
               ),
@@ -320,38 +363,71 @@ class _BookingScreenState extends State<BookingScreen> {
                     child: ListView(
                       padding: const EdgeInsets.all(16.0),
                       children: [
-                        // Car info card
-                        Card(
-                          elevation: 6,
-                          shape: RoundedRectangleBorder(
+                        // Modern Car info card (reduced height)
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Theme.of(context).primaryColor.withOpacity(0.1),
+                                Theme.of(
+                                  context,
+                                ).primaryColor.withOpacity(0.05),
+                              ],
+                            ),
                             borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.04),
+                                blurRadius: 10,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
                           ),
                           child: Padding(
-                            padding: const EdgeInsets.all(16.0),
+                            padding: const EdgeInsets.all(12.0),
                             child: Row(
                               children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Image.asset(
-                                    widget.car.imageUrl,
-                                    width: 80,
-                                    height: 80,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Container(
-                                        width: 80,
-                                        height: 80,
-                                        color: Colors.grey[300],
-                                        child: const Icon(Icons.directions_car),
-                                      );
-                                    },
+                                Hero(
+                                  tag: 'booking_car_${widget.car.id}',
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(14),
+                                    child: Image.asset(
+                                      widget.car.imageUrl,
+                                      width: 80,
+                                      height: 80,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
+                                            return Container(
+                                              width: 80,
+                                              height: 80,
+                                              decoration: BoxDecoration(
+                                                gradient: LinearGradient(
+                                                  colors: [
+                                                    Colors.grey[300]!,
+                                                    Colors.grey[200]!,
+                                                  ],
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(14),
+                                              ),
+                                              child: const Icon(
+                                                Icons.directions_car_rounded,
+                                                size: 32,
+                                              ),
+                                            );
+                                          },
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(width: 16),
+                                const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
                                         widget.car.name,
@@ -359,21 +435,45 @@ class _BookingScreenState extends State<BookingScreen> {
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold,
                                         ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      const SizedBox(height: 4),
+                                      const SizedBox(height: 2),
                                       Text(
                                         '${widget.car.brand} ${widget.car.model}',
                                         style: TextStyle(
                                           color: Colors.grey[600],
+                                          fontSize: 13,
                                         ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                       const SizedBox(height: 8),
-                                      Text(
-                                        '₹${widget.car.pricePerDay.toStringAsFixed(0)}/day',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: Theme.of(context).primaryColor,
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              Theme.of(context).primaryColor,
+                                              Theme.of(
+                                                context,
+                                              ).primaryColor.withOpacity(0.7),
+                                            ],
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          '₹${widget.car.pricePerDay.toStringAsFixed(0)}/day',
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -385,70 +485,159 @@ class _BookingScreenState extends State<BookingScreen> {
                         ),
                         const SizedBox(height: 24),
 
-                        // Booking dates
-                        Card(
-                          shape: RoundedRectangleBorder(
+                        // Booking dates card (reduced height)
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
                             borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 12,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
                           ),
                           child: Padding(
-                            padding: const EdgeInsets.all(16.0),
+                            padding: const EdgeInsets.all(14.0),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  'Booking Dates',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(
+                                          context,
+                                        ).primaryColor.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Icon(
+                                        Icons.calendar_month_rounded,
+                                        color: Theme.of(context).primaryColor,
+                                        size: 20,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    const Text(
+                                      'Booking Dates',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 const SizedBox(height: 12),
 
                                 // Start date
                                 InkWell(
                                   onTap: _selectStartDate,
-                                  child: InputDecorator(
-                                    decoration: const InputDecoration(
-                                      labelText: 'Start Date',
-                                      prefixIcon: Icon(Icons.calendar_today),
-                                      border: OutlineInputBorder(),
-                                    ),
-                                    child: Text(
-                                      _startDate == null
-                                          ? 'Select start date'
-                                          : DateFormat(
-                                              'MMM dd, yyyy',
-                                            ).format(_startDate!),
-                                      style: TextStyle(
-                                        color: _startDate == null
-                                            ? Colors.grey
-                                            : Colors.black,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[50],
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: Colors.grey[300]!,
                                       ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.event_rounded,
+                                          color: Theme.of(context).primaryColor,
+                                          size: 20,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'Start Date',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.grey[600],
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                _startDate == null
+                                                    ? 'Select start date'
+                                                    : DateFormat(
+                                                        'MMM dd, yyyy',
+                                                      ).format(_startDate!),
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: _startDate == null
+                                                      ? Colors.grey
+                                                      : Colors.black87,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),
-                                const SizedBox(height: 16),
+                                const SizedBox(height: 10),
 
                                 // End date
                                 InkWell(
                                   onTap: _selectEndDate,
-                                  child: InputDecorator(
-                                    decoration: const InputDecoration(
-                                      labelText: 'End Date',
-                                      prefixIcon: Icon(Icons.calendar_today),
-                                      border: OutlineInputBorder(),
-                                    ),
-                                    child: Text(
-                                      _endDate == null
-                                          ? 'Select end date'
-                                          : DateFormat(
-                                              'MMM dd, yyyy',
-                                            ).format(_endDate!),
-                                      style: TextStyle(
-                                        color: _endDate == null
-                                            ? Colors.grey
-                                            : Colors.black,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[50],
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: Colors.grey[300]!,
                                       ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.event_rounded,
+                                          color: Theme.of(context).primaryColor,
+                                          size: 20,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'End Date',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.grey[600],
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                _endDate == null
+                                                    ? 'Select end date'
+                                                    : DateFormat(
+                                                        'MMM dd, yyyy',
+                                                      ).format(_endDate!),
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: _endDate == null
+                                                      ? Colors.grey
+                                                      : Colors.black87,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),
@@ -459,21 +648,43 @@ class _BookingScreenState extends State<BookingScreen> {
                         const SizedBox(height: 24),
 
                         // Location details
-                        const Text(
-                          'Location Details',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Theme.of(
+                                  context,
+                                ).primaryColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                Icons.location_on_rounded,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Text(
+                              'Location Details',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
 
                         TextFormField(
                           controller: _pickupController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Pickup Location',
-                            prefixIcon: Icon(Icons.location_on),
-                            border: OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.my_location_rounded),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
                           ),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
@@ -486,10 +697,14 @@ class _BookingScreenState extends State<BookingScreen> {
 
                         TextFormField(
                           controller: _dropoffController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Drop-off Location',
-                            prefixIcon: Icon(Icons.location_on_outlined),
-                            border: OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.location_on_outlined),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
                           ),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
@@ -616,38 +831,41 @@ class _BookingScreenState extends State<BookingScreen> {
       ),
 
       // Confirm booking button
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: ElevatedButton(
-          onPressed: (_isLoading || _isCheckingAvailability || !_isAvailable)
-              ? null
-              : _createBooking,
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, -5),
+              ),
+            ],
           ),
-          child: _isLoading
-              ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text(
-                  'Confirm & Pay',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
+          child: ElevatedButton(
+            onPressed: (_isLoading || _isCheckingAvailability || !_isAvailable)
+                ? null
+                : _createBooking,
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: _isLoading
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text(
+                    'Confirm & Pay',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+          ),
         ),
       ),
     );

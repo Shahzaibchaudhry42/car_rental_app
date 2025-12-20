@@ -3,8 +3,15 @@ import 'booking_service.dart';
 
 /// Service for handling payment operations
 class PaymentService {
+  static const String razorpayKey = String.fromEnvironment(
+    'RAZORPAY_KEY',
+    defaultValue: '',
+  );
+
   late Razorpay _razorpay;
   final BookingService _bookingService = BookingService();
+
+  bool get isConfigured => razorpayKey.trim().isNotEmpty;
 
   /// Initialize Razorpay
   void initialize({
@@ -32,8 +39,12 @@ class PaymentService {
     required String email,
     required String contact,
   }) {
+    if (!isConfigured) {
+      throw 'Razorpay is not configured. Provide `--dart-define=RAZORPAY_KEY=...`.';
+    }
+
     var options = {
-      'key': 'YOUR_RAZORPAY_KEY', // Replace with your Razorpay key
+      'key': razorpayKey,
       'amount': (amount * 100).toInt(), // Amount in paise
       'name': 'Car Rental App',
       'description': description,

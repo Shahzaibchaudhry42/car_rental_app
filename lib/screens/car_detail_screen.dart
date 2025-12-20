@@ -13,236 +13,586 @@ class CarDetailScreen extends StatefulWidget {
   State<CarDetailScreen> createState() => _CarDetailScreenState();
 }
 
-class _CarDetailScreenState extends State<CarDetailScreen> {
+class _CarDetailScreenState extends State<CarDetailScreen>
+    with SingleTickerProviderStateMixin {
   final CarService _carService = CarService();
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeIn,
+    );
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AspectRatio(
-                aspectRatio: 16 / 9,
-                child: Image.asset(
-                  widget.car.imageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey[300],
-                      child: const Icon(Icons.directions_car, size: 100),
-                    );
-                  },
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Car name and brand
-                    Text(
-                      widget.car.name,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+      body: Stack(
+        children: [
+          // Main Content
+          CustomScrollView(
+            slivers: [
+              // Hero Image Header
+              SliverAppBar(
+                expandedHeight: 350,
+                pinned: true,
+                backgroundColor: Theme.of(context).primaryColor,
+                leading: Container(
+                  margin: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
                       ),
+                    ],
+                  ),
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.arrow_back_rounded,
+                      color: Colors.black87,
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${widget.car.brand} ${widget.car.model} (${widget.car.year})',
-                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Price and rating
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ),
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Hero(
+                    tag: 'car_image_${widget.car.id}',
+                    child: Stack(
+                      fit: StackFit.expand,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '₹${widget.car.pricePerDay.toStringAsFixed(0)}',
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).primaryColor,
-                              ),
-                            ),
-                            const Text(
-                              'per day',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.amber,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.star, color: Colors.white),
-                              const SizedBox(width: 4),
-                              Text(
-                                widget.car.rating.toStringAsFixed(1),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
+                        Image.asset(
+                          widget.car.imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Theme.of(
+                                      context,
+                                    ).primaryColor.withOpacity(0.3),
+                                    Theme.of(
+                                      context,
+                                    ).primaryColor.withOpacity(0.1),
+                                  ],
                                 ),
                               ),
+                              child: const Icon(
+                                Icons.directions_car_rounded,
+                                size: 120,
+                                color: Colors.white,
+                              ),
+                            );
+                          },
+                        ),
+                        // Gradient Overlay
+                        Positioned.fill(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.transparent,
+                                  Colors.black.withOpacity(0.7),
+                                ],
+                                stops: const [0.6, 1.0],
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Car Name at Bottom
+                        Positioned(
+                          bottom: 20,
+                          left: 20,
+                          right: 20,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                               Text(
-                                ' (${widget.car.totalReviews})',
-                                style: const TextStyle(color: Colors.white),
+                                widget.car.name,
+                                style: const TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  shadows: [
+                                    Shadow(
+                                      color: Colors.black45,
+                                      blurRadius: 10,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${widget.car.brand} ${widget.car.model} • ${widget.car.year}',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.white70,
+                                  shadows: [
+                                    Shadow(
+                                      color: Colors.black45,
+                                      blurRadius: 10,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 24),
-
-                    // Specifications
-                    const Text(
-                      'Specifications',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildSpecRow('Category', widget.car.category),
-                    _buildSpecRow(
-                      'Seating Capacity',
-                      '${widget.car.seatingCapacity} Persons',
-                    ),
-                    _buildSpecRow('Fuel Type', widget.car.fuelType),
-                    _buildSpecRow('Transmission', widget.car.transmission),
-                    _buildSpecRow('Location', widget.car.location),
-                    const SizedBox(height: 24),
-
-                    // Features
-                    const Text(
-                      'Features',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: widget.car.features
-                          .map(
-                            (feature) => Chip(
-                              label: Text(feature),
-                              avatar: const Icon(
-                                Icons.check_circle,
-                                size: 18,
-                                color: Colors.green,
-                              ),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Availability status
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: widget.car.isAvailable
-                            ? Colors.green.shade50
-                            : Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: widget.car.isAvailable
-                              ? Colors.green
-                              : Colors.red,
+                  ),
+                ),
+              ),
+              // Content
+              SliverToBoxAdapter(
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: SlideTransition(
+                    position: _slideAnimation,
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(30),
+                          topRight: Radius.circular(30),
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            widget.car.isAvailable
-                                ? Icons.check_circle
-                                : Icons.cancel,
-                            color: widget.car.isAvailable
-                                ? Colors.green
-                                : Colors.red,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              widget.car.isAvailable
-                                  ? 'This car is currently available for rent'
-                                  : 'This car is currently not available',
-                              style: TextStyle(
-                                color: widget.car.isAvailable
-                                    ? Colors.green.shade900
-                                    : Colors.red.shade900,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Price and Rating Card
+                            _buildPriceRatingCard(),
+                            const SizedBox(height: 24),
+
+                            // Specifications
+                            _buildSectionTitle('Specifications'),
+                            const SizedBox(height: 16),
+                            _buildSpecsGrid(),
+                            const SizedBox(height: 24),
+
+                            // Features
+                            _buildSectionTitle('Features'),
+                            const SizedBox(height: 16),
+                            _buildFeaturesList(),
+                            const SizedBox(height: 24),
+
+                            // Availability status
+                            _buildAvailabilityCard(),
+                            const SizedBox(height: 100), // Space for button
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 80), // Space for bottom button
+                  ),
+                ),
+              ),
+            ],
+          ),
+          // Floating Book Now Button
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
+              ),
+              child: ElevatedButton(
+                onPressed: widget.car.isAvailable
+                    ? () {
+                        Navigator.push(
+                          context,
+                          PageRouteBuilder(
+                            pageBuilder:
+                                (context, animation, secondaryAnimation) =>
+                                    BookingScreen(car: widget.car),
+                            transitionsBuilder:
+                                (
+                                  context,
+                                  animation,
+                                  secondaryAnimation,
+                                  child,
+                                ) {
+                                  return SlideTransition(
+                                    position:
+                                        Tween<Offset>(
+                                          begin: const Offset(0, 1),
+                                          end: Offset.zero,
+                                        ).animate(
+                                          CurvedAnimation(
+                                            parent: animation,
+                                            curve: Curves.easeInOutCubic,
+                                          ),
+                                        ),
+                                    child: child,
+                                  );
+                                },
+                          ),
+                        );
+                      }
+                    : null,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  'Book Now',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 22,
+        fontWeight: FontWeight.bold,
+        color: Colors.black87,
+      ),
+    );
+  }
+
+  Widget _buildPriceRatingCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Theme.of(context).primaryColor.withOpacity(0.1),
+            Theme.of(context).primaryColor.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Theme.of(context).primaryColor.withOpacity(0.2),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Price per day',
+                style: TextStyle(fontSize: 14, color: Colors.black54),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '₹${widget.car.pricePerDay.toStringAsFixed(0)}',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).primaryColor,
+                ),
+              ),
+            ],
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFFC837), Color(0xFFFFA500)],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.orange.withOpacity(0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.star_rounded, color: Colors.white, size: 24),
+                const SizedBox(width: 6),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.car.rating.toStringAsFixed(1),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      '${widget.car.totalReviews} reviews',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSpecsGrid() {
+    final specs = [
+      {
+        'icon': Icons.category_rounded,
+        'label': 'Category',
+        'value': widget.car.category,
+      },
+      {
+        'icon': Icons.event_seat_rounded,
+        'label': 'Seats',
+        'value': '${widget.car.seatingCapacity} Persons',
+      },
+      {
+        'icon': Icons.local_gas_station_rounded,
+        'label': 'Fuel Type',
+        'value': widget.car.fuelType,
+      },
+      {
+        'icon': Icons.settings_rounded,
+        'label': 'Transmission',
+        'value': widget.car.transmission,
+      },
+      {
+        'icon': Icons.location_on_rounded,
+        'label': 'Location',
+        'value': widget.car.location,
+      },
+      {
+        'icon': Icons.calendar_today_rounded,
+        'label': 'Year',
+        'value': '${widget.car.year}',
+      },
+    ];
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 2.2,
+      ),
+      itemCount: specs.length,
+      itemBuilder: (context, index) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey[200]!),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  specs[index]['icon'] as IconData,
+                  size: 20,
+                  color: Theme.of(context).primaryColor,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      specs[index]['label'] as String,
+                      style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      specs[index]['value'] as String,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 ),
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFeaturesList() {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: widget.car.features.map((feature) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.green[50]!, Colors.green[100]!.withOpacity(0.3)],
+            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.green[200]!),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.check_circle_rounded,
+                size: 20,
+                color: Colors.green[700],
+              ),
+              const SizedBox(width: 8),
+              Text(
+                feature,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.green[900],
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildAvailabilityCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: widget.car.isAvailable
+              ? [Colors.green[50]!, Colors.green[100]!.withOpacity(0.3)]
+              : [Colors.red[50]!, Colors.red[100]!.withOpacity(0.3)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: widget.car.isAvailable ? Colors.green[300]! : Colors.red[300]!,
+          width: 2,
         ),
       ),
-
-      // Book now button
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: ElevatedButton(
-          onPressed: widget.car.isAvailable
-              ? () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => BookingScreen(car: widget.car),
-                    ),
-                  );
-                }
-              : null,
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: widget.car.isAvailable ? Colors.green : Colors.red,
               borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: (widget.car.isAvailable ? Colors.green : Colors.red)
+                      .withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Icon(
+              widget.car.isAvailable
+                  ? Icons.check_circle_rounded
+                  : Icons.cancel_rounded,
+              color: Colors.white,
+              size: 28,
             ),
           ),
-          child: const Text(
-            'Book Now',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.car.isAvailable ? 'Available' : 'Not Available',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: widget.car.isAvailable
+                        ? Colors.green[900]
+                        : Colors.red[900],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  widget.car.isAvailable
+                      ? 'This car is ready for booking'
+                      : 'This car is currently unavailable',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: widget.car.isAvailable
+                        ? Colors.green[700]
+                        : Colors.red[700],
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

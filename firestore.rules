@@ -1,0 +1,63 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // Users
+    match /users/{userId} {
+      allow create: if signedIn() && request.auth.uid == userId;
+      allow read, update, delete: if signedIn() && request.auth.uid == userId;
+
+      // Admin access
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Cars
+    match /cars/{carId} {
+      // Public read so the app can browse cars.
+      allow read: if true;
+
+      // Admin-only writes
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Bookings
+    match /bookings/{bookingId} {
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+
+      // Owners can read their bookings; admins can read all.
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+
+      // Owners: only allow payment fields to change (status can't be changed by user).
+      allow update: if isAdmin() || (
+        signedIn() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == resource.data.userId &&
+        request.resource.data.carId == resource.data.carId &&
+        request.resource.data.status == resource.data.status &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'paymentId',
+          'isPaid',
+          'updatedAt'
+        ])
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // Notifications saved by the app (not push delivery)
+    match /notifications/{notificationId} {
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if signedIn() && resource.data.userId == request.auth.uid;
+      allow read, update, delete: if isAdmin();
+    }
+  }
+}

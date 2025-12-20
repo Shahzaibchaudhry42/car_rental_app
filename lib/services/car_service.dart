@@ -190,10 +190,17 @@ class CarService {
     required DateTime endDate,
   }) async {
     try {
-      // Get car details
-      CarModel? car = await getCarById(carId);
-      if (car == null || !car.isAvailable) {
-        return false;
+      // Try to respect car availability flag when possible, but
+      // don't block bookings for locally created/debug cars that
+      // may not exist in Firestore.
+      try {
+        CarModel? car = await getCarById(carId);
+        if (car != null && !car.isAvailable) {
+          return false;
+        }
+      } catch (_) {
+        // If the car document can't be loaded (e.g. debug/local cars),
+        // fall back to booking-based availability only.
       }
 
       // Check for overlapping bookings

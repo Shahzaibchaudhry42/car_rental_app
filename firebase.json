@@ -1,1 +1,28 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"car-rental-app-32c18","appId":"1:666868437388:android:35fd72425a8194bef7c6a9","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"car-rental-app-32c18","configurations":{"android":"1:666868437388:android:35fd72425a8194bef7c6a9","ios":"1:666868437388:ios:63aa4e1c775df586f7c6a9","macos":"1:666868437388:ios:63aa4e1c775df586f7c6a9","web":"1:666868437388:web:3927efb0f3a7b1e9f7c6a9","windows":"1:666868437388:web:8301cda6ba0b0d11f7c6a9"}}}}}}
+{
+	"flutter": {
+		"platforms": {
+			"android": {
+				"default": {
+					"projectId": "car-rental-app-32c18",
+					"appId": "1:666868437388:android:35fd72425a8194bef7c6a9",
+					"fileOutput": "android/app/google-services.json"
+				}
+			},
+			"dart": {
+				"lib/firebase_options.dart": {
+					"projectId": "car-rental-app-32c18",
+					"configurations": {
+						"android": "1:666868437388:android:35fd72425a8194bef7c6a9",
+						"ios": "1:666868437388:ios:63aa4e1c775df586f7c6a9",
+						"macos": "1:666868437388:ios:63aa4e1c775df586f7c6a9",
+						"web": "1:666868437388:web:3927efb0f3a7b1e9f7c6a9",
+						"windows": "1:666868437388:web:8301cda6ba0b0d11f7c6a9"
+					}
+				}
+			}
+		}
+	},
+	"firestore": {
+		"rules": "firestore.rules"
+	}
+}
