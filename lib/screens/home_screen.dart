@@ -892,7 +892,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               topRight: Radius.circular(24),
                             ),
                             child: AspectRatio(
-                              aspectRatio: 1.2,
+                              // Slightly shorter image to avoid tile overflows on small screens.
+                              aspectRatio: 1.35,
                               child: Image.asset(
                                 car.imageUrl,
                                 fit: BoxFit.cover,
@@ -989,7 +990,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     // Car Details
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.all(14.0),
+                        padding: const EdgeInsets.all(12.0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1000,7 +1001,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 Text(
                                   car.name,
                                   style: const TextStyle(
-                                    fontSize: 17,
+                                    fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.black87,
                                   ),
@@ -1028,19 +1029,19 @@ class _HomeScreenState extends State<HomeScreen> {
                                       Icons.event_seat_rounded,
                                       '${car.seatingCapacity}',
                                     ),
-                                    const SizedBox(width: 8),
+                                    const SizedBox(width: 6),
                                     _buildModernDetailIcon(
                                       Icons.settings_rounded,
                                       car.transmission[0].toUpperCase(),
                                     ),
-                                    const SizedBox(width: 8),
+                                    const SizedBox(width: 6),
                                     _buildModernDetailIcon(
                                       Icons.local_gas_station_rounded,
                                       car.fuelType[0].toUpperCase(),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 10),
                                 // Price Row with Gradient Button
                                 Row(
                                   mainAxisAlignment:
@@ -1054,7 +1055,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         Text(
                                           '₹${car.pricePerDay.toStringAsFixed(0)}',
                                           style: TextStyle(
-                                            fontSize: 22,
+                                            fontSize: 20,
                                             fontWeight: FontWeight.bold,
                                             color: Theme.of(
                                               context,
@@ -1119,21 +1120,21 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Build modern detail icon widget
   Widget _buildModernDetailIcon(IconData icon, String label) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         gradient: LinearGradient(colors: [Colors.grey[100]!, Colors.grey[50]!]),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(9),
         border: Border.all(color: Colors.grey[200]!, width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 15, color: Colors.grey[700]),
-          const SizedBox(width: 5),
+          Icon(icon, size: 14, color: Colors.grey[700]),
+          const SizedBox(width: 4),
           Text(
             label,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 10,
               color: Colors.grey[700],
               fontWeight: FontWeight.w600,
             ),

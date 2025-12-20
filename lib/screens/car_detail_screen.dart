@@ -423,16 +423,18 @@ class _CarDetailScreenState extends State<CarDetailScreen>
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
+      // Use a max item width + fixed item height so tiles don't become
+      // excessively tall on wide screens (web/desktop).
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 320,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        childAspectRatio: 2.2,
+        mainAxisExtent: 84,
       ),
       itemCount: specs.length,
       itemBuilder: (context, index) {
         return Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: Colors.grey[50],
             borderRadius: BorderRadius.circular(16),
@@ -441,18 +443,18 @@ class _CarDetailScreenState extends State<CarDetailScreen>
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: Theme.of(context).primaryColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
                   specs[index]['icon'] as IconData,
-                  size: 20,
+                  size: 18,
                   color: Theme.of(context).primaryColor,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -460,13 +462,13 @@ class _CarDetailScreenState extends State<CarDetailScreen>
                   children: [
                     Text(
                       specs[index]['label'] as String,
-                      style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                      style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       specs[index]['value'] as String,
                       style: const TextStyle(
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: FontWeight.bold,
                         color: Colors.black87,
                       ),
