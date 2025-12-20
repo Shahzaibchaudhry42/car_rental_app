@@ -8,6 +8,7 @@ service cloud.firestore {
 
     function isAdmin() {
       return signedIn() &&
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
@@ -36,18 +37,35 @@ service cloud.firestore {
       // Owners can read their bookings; admins can read all.
       allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
 
-      // Owners: only allow payment fields to change (status can't be changed by user).
+      // Updates
+      // - Admin: can update anything
+      // - Owner: can either update payment fields OR cancel their own booking
       allow update: if isAdmin() || (
         signedIn() &&
         resource.data.userId == request.auth.uid &&
         request.resource.data.userId == resource.data.userId &&
         request.resource.data.carId == resource.data.carId &&
-        request.resource.data.status == resource.data.status &&
-        request.resource.data.diff(resource.data).changedKeys().hasOnly([
-          'paymentId',
-          'isPaid',
-          'updatedAt'
-        ])
+        (
+          // Payment update
+          (
+            request.resource.data.status == resource.data.status &&
+            request.resource.data.diff(resource.data).changedKeys().hasOnly([
+              'paymentId',
+              'isPaid',
+              'updatedAt'
+            ])
+          )
+          ||
+          // Cancel booking (user)
+          (
+            request.resource.data.status == 'cancelled' &&
+            request.resource.data.diff(resource.data).changedKeys().hasOnly([
+              'status',
+              'updatedAt',
+              'adminNote'
+            ])
+          )
+        )
       );
 
       allow delete: if isAdmin();

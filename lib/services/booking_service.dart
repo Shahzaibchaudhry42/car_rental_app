@@ -35,23 +35,36 @@ class BookingService {
       );
 
       return docRef.id;
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') {
+        throw 'Booking failed: Firestore permission denied.\n\nFix: deploy the included Firestore rules (firestore.rules) to your Firebase project, then try again.';
+      }
+      throw 'Failed to create booking: ${e.message ?? e.code}';
     } catch (e) {
+      final message = e.toString();
+      if (message.contains('permission-denied') ||
+          message.contains('PERMISSION_DENIED')) {
+        throw 'Booking failed: Firestore permission denied.\n\nFix: deploy the included Firestore rules (firestore.rules) to your Firebase project, then try again.';
+      }
       throw 'Failed to create booking: $e';
     }
   }
 
   /// Get user bookings stream
   Stream<List<BookingModel>> getUserBookingsStream(String userId) {
+    // Note: `where(userId) + orderBy(createdAt)` requires a composite index.
+    // To keep setup friction low, we sort client-side instead.
     return _firestore
         .collection('bookings')
         .where('userId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
+        .map((snapshot) {
+          final bookings = snapshot.docs
               .map((doc) => BookingModel.fromFirestore(doc))
-              .toList(),
-        );
+              .toList();
+          bookings.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return bookings;
+        });
   }
 
   /// Get all bookings stream (Admin)
@@ -69,16 +82,19 @@ class BookingService {
 
   /// Get pending bookings stream (Admin)
   Stream<List<BookingModel>> getPendingBookingsStream() {
+    // Note: `where(status) + orderBy(createdAt)` requires a composite index.
+    // Sort client-side to avoid an index setup step.
     return _firestore
         .collection('bookings')
         .where('status', isEqualTo: 'pending')
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
+        .map((snapshot) {
+          final bookings = snapshot.docs
               .map((doc) => BookingModel.fromFirestore(doc))
-              .toList(),
-        );
+              .toList();
+          bookings.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return bookings;
+        });
   }
 
   /// Get booking by ID
@@ -168,7 +184,17 @@ class BookingService {
         title: 'Booking Cancelled',
         body: 'Your booking for ${booking.carName} has been cancelled.',
       );
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') {
+        throw 'Cancel failed: Firestore permission denied.\n\nFix: update/deploy Firestore rules to allow users to cancel their own bookings.';
+      }
+      throw 'Failed to cancel booking: ${e.message ?? e.code}';
     } catch (e) {
+      final message = e.toString();
+      if (message.contains('permission-denied') ||
+          message.contains('PERMISSION_DENIED')) {
+        throw 'Cancel failed: Firestore permission denied.\n\nFix: update/deploy Firestore rules to allow users to cancel their own bookings.';
+      }
       throw 'Failed to cancel booking: $e';
     }
   }
@@ -219,15 +245,20 @@ class BookingService {
   Future<List<BookingModel>> getUpcomingBookings(String userId) async {
     try {
       DateTime now = DateTime.now();
+      // Avoid multi-field query indexes by fetching the user's bookings
+      // and filtering client-side.
       QuerySnapshot snapshot = await _firestore
           .collection('bookings')
           .where('userId', isEqualTo: userId)
-          .where('status', isEqualTo: 'approved')
           .get();
 
       List<BookingModel> bookings = snapshot.docs
           .map((doc) => BookingModel.fromFirestore(doc))
-          .where((booking) => booking.startDate.isAfter(now))
+          .where(
+            (booking) =>
+                booking.status == BookingStatus.approved &&
+                booking.startDate.isAfter(now),
+          )
           .toList();
 
       bookings.sort((a, b) => a.startDate.compareTo(b.startDate));
@@ -241,15 +272,22 @@ class BookingService {
   Future<List<BookingModel>> getPastBookings(String userId) async {
     try {
       DateTime now = DateTime.now();
+      // Avoid multi-field query indexes by fetching the user's bookings
+      // and filtering client-side.
       QuerySnapshot snapshot = await _firestore
           .collection('bookings')
           .where('userId', isEqualTo: userId)
-          .where('status', whereIn: ['completed', 'cancelled'])
           .get();
 
       List<BookingModel> bookings = snapshot.docs
           .map((doc) => BookingModel.fromFirestore(doc))
-          .where((booking) => booking.endDate.isBefore(now))
+          .where((booking) {
+            final isPast = booking.endDate.isBefore(now);
+            final isPastStatus =
+                booking.status == BookingStatus.completed ||
+                booking.status == BookingStatus.cancelled;
+            return isPast && isPastStatus;
+          })
           .toList();
 
       bookings.sort((a, b) => b.endDate.compareTo(a.endDate));
