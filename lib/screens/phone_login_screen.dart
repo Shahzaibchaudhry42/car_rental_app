@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
+import '../utils/modern_ui.dart';
 import 'home_screen.dart';
 
 /// Phone number login with OTP verification
@@ -11,7 +12,8 @@ class PhoneLoginScreen extends StatefulWidget {
   State<PhoneLoginScreen> createState() => _PhoneLoginScreenState();
 }
 
-class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
+class _PhoneLoginScreenState extends State<PhoneLoginScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
   final _otpController = TextEditingController();
@@ -20,9 +22,26 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   String? _verificationId;
   bool _isLoading = false;
   bool _codeSent = false;
+  bool _animate = false;
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(duration: ModernUI.slow, vsync: this);
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: ModernUI.bounceCurve),
+    );
+    _controller.forward();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _animate = true);
+    });
+  }
 
   @override
   void dispose() {
+    _controller.dispose();
     _phoneController.dispose();
     _otpController.dispose();
     super.dispose();
@@ -121,106 +140,95 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Login with Phone')),
+      appBar: AppBar(
+        title: const Text('Login with Phone'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
+      extendBodyBehindAppBar: true,
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF0D47A1), Color(0xFF1976D2)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
+        decoration: ModernUI.gradientBackground(
+          colors: [const Color(0xFF667eea), const Color(0xFF764ba2)],
         ),
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24.0),
-              child: Card(
-                elevation: 8,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const SizedBox(height: 8),
-                        Center(
-                          child: Icon(
-                            Icons.phone_iphone,
-                            size: 64,
-                            color: Theme.of(context).primaryColor,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Phone Verification',
-                          style: Theme.of(context).textTheme.headlineSmall
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Enter your phone number to receive an OTP.',
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: Colors.grey[600]),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 24),
-                        TextFormField(
-                          controller: _phoneController,
-                          keyboardType: TextInputType.phone,
-                          decoration: const InputDecoration(
-                            labelText: 'Phone Number',
-                            hintText: '+91 98765 43210',
-                            prefixIcon: Icon(Icons.phone),
-                            border: OutlineInputBorder(),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter phone number';
-                            }
-                            if (!value.startsWith('+')) {
-                              return 'Include country code, e.g. +91...';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        if (_codeSent)
-                          TextFormField(
-                            controller: _otpController,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'OTP',
-                              hintText: '6-digit code',
-                              prefixIcon: Icon(Icons.shield),
-                              border: OutlineInputBorder(),
+              child: ScaleTransition(
+                scale: _scaleAnimation,
+                child: AnimatedSlide(
+                  duration: ModernUI.slow,
+                  curve: ModernUI.defaultCurve,
+                  offset: _animate ? Offset.zero : const Offset(0, 0.1),
+                  child: ModernUI.glassCard(
+                    borderRadius: BorderRadius.circular(24),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const SizedBox(height: 8),
+                          Center(
+                            child: Icon(
+                              Icons.phone_iphone,
+                              size: 64,
+                              color: Theme.of(context).primaryColor,
                             ),
                           ),
-                        const SizedBox(height: 24),
-                        ElevatedButton(
-                          onPressed: _isLoading
-                              ? null
-                              : _codeSent
-                              ? _verifyCode
-                              : _sendCode,
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Phone Verification',
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
                           ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Text(_codeSent ? 'Verify OTP' : 'Send OTP'),
-                        ),
-                      ],
+                          const SizedBox(height: 8),
+                          Text(
+                            'Enter your phone number to receive an OTP.',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: Colors.grey[600]),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 24),
+                          TextFormField(
+                            controller: _phoneController,
+                            keyboardType: TextInputType.phone,
+                            decoration: ModernUI.modernInputDecoration(
+                              label: 'Phone Number',
+                              hintText: '+91 98765 43210',
+                              prefixIcon: Icons.phone,
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter phone number';
+                              }
+                              if (!value.startsWith('+')) {
+                                return 'Include country code, e.g. +91...';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          if (_codeSent)
+                            TextFormField(
+                              controller: _otpController,
+                              keyboardType: TextInputType.number,
+                              decoration: ModernUI.modernInputDecoration(
+                                label: 'OTP',
+                                hintText: '6-digit code',
+                                prefixIcon: Icons.shield,
+                              ),
+                            ),
+                          const SizedBox(height: 24),
+                          ModernUI.modernButton(
+                            onPressed: _codeSent ? _verifyCode : _sendCode,
+                            text: _codeSent ? 'Verify OTP' : 'Send OTP',
+                            isLoading: _isLoading,
+                            icon: _codeSent ? Icons.check_circle : Icons.send,
+                            width: double.infinity,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

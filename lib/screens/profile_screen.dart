@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import '../services/booking_service.dart';
 import '../models/user_model.dart';
@@ -747,6 +746,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     color: const Color(0xFF8B5CF6),
                   ),
                 ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Completed Orders: $completed',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black87,
+                ),
               ),
             ],
           ),

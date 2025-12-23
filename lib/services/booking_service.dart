@@ -7,6 +7,22 @@ class BookingService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final NotificationService _notificationService = NotificationService();
 
+  /// Count completed bookings for a given user.
+  ///
+  /// This is fetched from Firestore using the logged-in user's uid.
+  Future<int> getCompletedBookingsCount(String userId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('bookings')
+          .where('userId', isEqualTo: userId)
+          .where('status', isEqualTo: 'completed')
+          .get();
+      return snapshot.docs.length;
+    } catch (e) {
+      throw 'Failed to fetch completed bookings count: $e';
+    }
+  }
+
   /// Create a new booking
   Future<String> createBooking(BookingModel booking) async {
     try {
@@ -234,10 +250,61 @@ class BookingService {
       await _firestore.collection('bookings').doc(bookingId).update({
         'paymentId': paymentId,
         'isPaid': isPaid,
+        'paymentStatus': isPaid ? 'paid' : 'unpaid',
+        // For this app, a successful payment finalizes the booking.
+        if (isPaid) 'status': 'completed',
+        if (isPaid) 'bookingStatus': 'completed',
         'updatedAt': Timestamp.now(),
       });
     } catch (e) {
       throw 'Failed to update payment status: $e';
+    }
+  }
+
+  /// Mark booking as paid + completed after a successful payment.
+  ///
+  /// Also stores user/billing details used by Cloud Functions email trigger.
+  /// Uses a transaction to avoid accidentally reverting `emailSent` fields.
+  Future<void> completeBookingAfterPayment({
+    required String bookingId,
+    required String paymentId,
+    String? userName,
+    String? userEmail,
+    Map<String, dynamic>? billingDetails,
+  }) async {
+    try {
+      final docRef = _firestore.collection('bookings').doc(bookingId);
+      await _firestore.runTransaction((tx) async {
+        final snap = await tx.get(docRef);
+        if (!snap.exists) {
+          throw 'Booking not found';
+        }
+
+        final raw = snap.data();
+        final data = raw is Map<String, dynamic> ? raw : <String, dynamic>{};
+        final alreadySent = data['emailSent'] == true;
+        final existingSendState = (data['emailSendState'] ?? '').toString();
+
+        tx.update(docRef, {
+          'paymentId': paymentId,
+          'isPaid': true,
+          'paymentStatus': 'paid',
+          'status': 'completed',
+          'bookingStatus': 'completed',
+          'updatedAt': Timestamp.now(),
+          if (userName != null && userName.trim().isNotEmpty)
+            'userName': userName.trim(),
+          if (userEmail != null && userEmail.trim().isNotEmpty)
+            'userEmail': userEmail.trim(),
+          if (billingDetails != null) 'billingDetails': billingDetails,
+          // Do not accidentally reset email fields.
+          if (alreadySent) 'emailSent': true,
+          if (!alreadySent && existingSendState.isEmpty)
+            'emailSendState': 'pending',
+        });
+      });
+    } catch (e) {
+      throw 'Failed to complete booking after payment: $e';
     }
   }
 
@@ -307,7 +374,7 @@ class BookingService {
       QuerySnapshot bookings = await _firestore
           .collection('bookings')
           .where('carId', isEqualTo: carId)
-          .where('status', whereIn: ['pending', 'approved'])
+          .where('status', whereIn: ['pending', 'approved', 'completed'])
           .get();
 
       for (var doc in bookings.docs) {

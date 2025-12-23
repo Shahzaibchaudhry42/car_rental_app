@@ -207,7 +207,7 @@ class CarService {
       QuerySnapshot bookings = await _firestore
           .collection('bookings')
           .where('carId', isEqualTo: carId)
-          .where('status', whereIn: ['pending', 'approved'])
+          .where('status', whereIn: ['pending', 'approved', 'completed'])
           .get();
 
       for (var doc in bookings.docs) {

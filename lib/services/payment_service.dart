@@ -65,12 +65,17 @@ class PaymentService {
   Future<void> processPaymentSuccess({
     required String bookingId,
     required String paymentId,
+    String? userName,
+    String? userEmail,
+    Map<String, dynamic>? billingDetails,
   }) async {
     try {
-      await _bookingService.updatePaymentStatus(
+      await _bookingService.completeBookingAfterPayment(
         bookingId: bookingId,
         paymentId: paymentId,
-        isPaid: true,
+        userName: userName,
+        userEmail: userEmail,
+        billingDetails: billingDetails,
       );
     } catch (e) {
       throw 'Failed to process payment: $e';

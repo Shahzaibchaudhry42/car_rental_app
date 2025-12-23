@@ -7,6 +7,7 @@ import '../models/booking_model.dart';
 import '../services/booking_service.dart';
 import '../services/car_service.dart';
 import '../services/payment_service.dart';
+import 'payment_screen.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 /// Booking screen for car reservation
@@ -239,27 +240,30 @@ class _BookingScreenState extends State<BookingScreen> {
 
       String bookingId = await _bookingService.createBooking(booking);
 
-      // For web (where Razorpay Flutter isn't supported well),
-      // simulate a successful payment to keep the flow working.
-      if (kIsWeb) {
-        await _paymentService.processPaymentSuccess(
-          bookingId: bookingId,
-          paymentId: 'WEB_TEST_PAYMENT',
-        );
-        _onBookingSuccess();
-      } else {
-        // Open payment gateway on supported platforms
-        _paymentService.openCheckout(
-          amount: _totalPrice,
-          name: user.displayName ?? 'User',
-          description: 'Booking for ${widget.car.name}',
-          email: user.email ?? '',
-          contact: user.phoneNumber ?? '',
-        );
+      // Store booking ID for payment flow
+      _currentBookingId = bookingId;
 
-        // Store booking ID for payment callback
-        _currentBookingId = bookingId;
-      }
+      if (!mounted) return;
+
+      // Navigate to payment screen for all platforms.
+      // (On web, PaymentScreen will not use Razorpay and will show alternatives.)
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PaymentScreen(
+            bookingId: bookingId,
+            car: widget.car,
+            startDate: _startDate!,
+            endDate: _endDate!,
+            pickupLocation: _pickupController.text.trim(),
+            dropoffLocation: _dropoffController.text.trim(),
+            specialRequests: _specialRequestsController.text.trim().isNotEmpty
+                ? _specialRequestsController.text.trim()
+                : null,
+            totalPrice: _totalPrice,
+          ),
+        ),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
@@ -291,15 +295,34 @@ class _BookingScreenState extends State<BookingScreen> {
   /// Handle payment success
   void _handlePaymentSuccess(PaymentSuccessResponse response) async {
     try {
+      if (_currentBookingId.trim().isEmpty) {
+        throw 'Booking reference is missing. Please try booking again.';
+      }
+
+      final user = FirebaseAuth.instance.currentUser;
+
       await _paymentService.processPaymentSuccess(
         bookingId: _currentBookingId,
         paymentId: response.paymentId ?? '',
+        userName: user?.displayName,
+        userEmail: user?.email,
       );
 
       _onBookingSuccess();
     } catch (e) {
+      final message = e.toString();
+      final isPermissionDenied =
+          message.contains('permission-denied') ||
+          message.contains('PERMISSION_DENIED');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(
+            isPermissionDenied
+                ? 'Payment captured, but booking update was blocked by Firestore rules. Deploy firestore.rules and try again.'
+                : 'Error: $e',
+          ),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }

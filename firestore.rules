@@ -48,10 +48,17 @@ service cloud.firestore {
         (
           // Payment update
           (
-            request.resource.data.status == resource.data.status &&
+            // The app marks booking as completed after payment success.
             request.resource.data.diff(resource.data).changedKeys().hasOnly([
               'paymentId',
               'isPaid',
+              'paymentStatus',
+              'bookingStatus',
+              'status',
+              'userName',
+              'userEmail',
+              'billingDetails',
+              'emailSendState',
               'updatedAt'
             ])
           )
@@ -61,6 +68,7 @@ service cloud.firestore {
             request.resource.data.status == 'cancelled' &&
             request.resource.data.diff(resource.data).changedKeys().hasOnly([
               'status',
+              'bookingStatus',
               'updatedAt',
               'adminNote'
             ])
